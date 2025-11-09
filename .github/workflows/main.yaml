@@ -3,7 +3,7 @@ name: Hello GitHub Actions
 # トリガーとなるイベントを定義します。(mainブランチへのpush)
 on:
   push:
-		branches:
+    branches:
       - 'main'
 # ジョブを追加します。(最新バージョンのUbuntu上でビルドを実行します。)
 jobs:
