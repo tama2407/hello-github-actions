@@ -1,4 +1,4 @@
-name: Build & Deploy to ECR using OIDC
+name: Build image & Deploy to Amazon ECR using OIDC
 
 on:
   push:
@@ -8,30 +8,59 @@ on:
 env:
   AWS_REGION: ap-northeast-1
 
+# OIDC認証に必須
+permissions:
+  id-token: write   # OIDCトークン取得に必要
+  contents: read    # リポジトリ読み取りに必要
+
 jobs:
   deploy:
-    name: Build and Push Docker Image
+    name: Build-and-Deploy
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      # デバッグ用（問題解決後は削除してOK）
+      - name: Show GitHub Context
+        run: |
+          echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "GITHUB_REF=$GITHUB_REF"
 
-      # OIDC で Role を引き受ける
-      - name: Configure AWS credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # OIDC認証（アクセスキー不要）
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::050451404657:role/github-actions-ecr-role
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/demo-repository:latest ./mysite
+          # Dockerイメージをビルド
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./mysite
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ./mysite
+          
+          # ECRにプッシュ
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # 出力
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Push Docker image to ECR
+      - name: Summary
         run: |
-          docker push ${{ steps.login-ecr.outputs.registry }}/demo-repository:latest
+          echo "Image pushed to ECR successfully"
+          echo "Repository: ${{ secrets.ECR_REPOSITORY }}"
+          echo "Tag: ${{ github.sha }}"
+          echo "Latest tag also pushed"
