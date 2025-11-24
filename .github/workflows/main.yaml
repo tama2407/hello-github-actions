@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # デバッグ：GitHub から渡される値を確認
+      # デバッグ：GitHub から渡される値を確認用
       - name: Debug GitHub Context
         run: |
           echo "Repository: $GITHUB_REPOSITORY"
