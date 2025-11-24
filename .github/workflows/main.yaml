@@ -22,12 +22,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # デバッグ：GitHub から渡される値を確認用
       - name: Debug GitHub Context
         run: |
           echo "Repository: $GITHUB_REPOSITORY"
           echo "Ref: $GITHUB_REF"
           echo "Expected sub: repo:$GITHUB_REPOSITORY:ref:$GITHUB_REF"
+
+      - name: Debug AWS Role ARN
+        run: |
+          echo "AWS_ROLE_ARN length: ${#AWS_ROLE_ARN}"
+          echo "First 30 chars: ${AWS_ROLE_ARN:0:30}"
+          echo "Last 30 chars: ${AWS_ROLE_ARN: -30}"
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
