@@ -1,4 +1,4 @@
-name: Build image & Deploy to Amazon ECR using OIDC
+name: Build image & Deploy to Amazon ECR
 
 on:
   push:
@@ -8,10 +8,9 @@ on:
 env:
   AWS_REGION: ap-northeast-1
 
-# OIDC認証に必須
 permissions:
-  id-token: write   # OIDCトークン取得に必要
-  contents: read    # リポジトリ読み取りに必要
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -20,16 +19,16 @@ jobs:
     environment: production
 
     steps:
-      # デバッグ用（問題解決後は削除してOK）
-      - name: Show GitHub Context
-        run: |
-          echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
-          echo "GITHUB_REF=$GITHUB_REF"
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      # OIDC認証（アクセスキー不要）
+      # デバッグ：GitHub から渡される値を確認
+      - name: Debug GitHub Context
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Ref: $GITHUB_REF"
+          echo "Expected sub: repo:$GITHUB_REPOSITORY:ref:$GITHUB_REF"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -45,22 +44,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: latest
         run: |
-          # Dockerイメージをビルド
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./mysite
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ./mysite
-          
-          # ECRにプッシュ
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
-          # 出力
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Summary
-        run: |
-          echo "Image pushed to ECR successfully"
-          echo "Repository: ${{ secrets.ECR_REPOSITORY }}"
-          echo "Tag: ${{ github.sha }}"
-          echo "Latest tag also pushed"
